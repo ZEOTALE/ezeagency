@@ -1,0 +1,766 @@
+<title>EzeAgency</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ============================================================
+     Layout concept: an airport departure board (dark) crossed with
+     ticket stock (light) — GDS/PNR data is the hero material, shown
+     in monospace "board" rows; headlines run in a bold condensed
+     sans like wayfinding signage.
+     ============================================================ */
+  :root{
+    --bg: #faf6ee;
+    --surface: #ffffff;
+    --surface-2: #f2ecdd;
+    --ink: #16202c;
+    --muted: #5b6672;
+    --accent: #c9671f;
+    --accent-ink: #fffaf1;
+    --good: #227a63;
+    --good-bg: #e3f2ec;
+    --warn: #9a6a12;
+    --warn-bg: #faeecd;
+    --bad: #b03a2e;
+    --bad-bg: #fbe6e2;
+    --line: #e2d9c4;
+    --font-display: "Archivo", "Arial Narrow", sans-serif;
+    --font-body: "Public Sans", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg: #10151c;
+      --surface: #1a212b;
+      --surface-2: #212b36;
+      --ink: #f2ede1;
+      --muted: #9aa5b1;
+      --accent: #f0a53f;
+      --accent-ink: #1a1304;
+      --good: #4fcba3;
+      --good-bg: #113229;
+      --warn: #f0c050;
+      --warn-bg: #3a2e10;
+      --bad: #f08670;
+      --bad-bg: #3a1a14;
+      --line: #2a3340;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg: #10151c;
+    --surface: #1a212b;
+    --surface-2: #212b36;
+    --ink: #f2ede1;
+    --muted: #9aa5b1;
+    --accent: #f0a53f;
+    --accent-ink: #1a1304;
+    --good: #4fcba3;
+    --good-bg: #113229;
+    --warn: #f0c050;
+    --warn-bg: #3a2e10;
+    --bad: #f08670;
+    --bad-bg: #3a1a14;
+    --line: #2a3340;
+    color-scheme: dark;
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--font-body);
+    line-height:1.55;
+    padding-left:max(16px, env(safe-area-inset-left,0px));
+    padding-right:max(16px, env(safe-area-inset-right,0px));
+  }
+  .wrap{max-width:1080px;margin:0 auto;}
+  h1,h2,h3{font-family:var(--font-display);font-weight:800;text-wrap:balance;line-height:1.08;letter-spacing:-0.01em;margin:0;}
+  p{margin:0;}
+  a{color:inherit;}
+  .mono{font-family:var(--font-mono);}
+  .eyebrow{
+    font-family:var(--font-mono);
+    font-size:.72rem;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--accent);
+    font-weight:600;
+  }
+  section{padding-block:clamp(3rem,7vw,5.5rem);}
+  .lede{color:var(--muted);font-size:1.05rem;max-width:62ch;}
+  img{max-width:100%;}
+  [hidden]{display:none!important;}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+  button{font:inherit;}
+
+  /* ---------- header ---------- */
+  header.site{
+    position:relative;
+    z-index:5;
+    padding-block:1.1rem;
+    border-bottom:1px solid var(--line);
+  }
+  header.site .bar{display:flex;align-items:center;justify-content:space-between;gap:1rem;}
+  .logo{font-family:var(--font-display);font-weight:800;font-size:1.15rem;letter-spacing:-0.01em;}
+  .logo span{color:var(--accent);}
+  nav.links{display:flex;gap:1.5rem;font-size:.92rem;}
+  nav.links a{color:var(--muted);text-decoration:none;}
+  nav.links a:hover{color:var(--ink);}
+  @media (max-width:640px){ nav.links{display:none;} }
+  .btn{
+    display:inline-flex;align-items:center;gap:.5rem;
+    background:var(--accent);color:var(--accent-ink);
+    font-weight:600;font-size:.88rem;
+    padding:.6rem 1.05rem;border-radius:3px;border:none;cursor:pointer;
+    text-decoration:none;white-space:nowrap;
+  }
+  .btn:hover{filter:brightness(1.06);}
+  .btn.ghost{
+    background:transparent;color:var(--ink);border:1px solid var(--line);
+  }
+
+  /* ---------- hero ---------- */
+  .hero{padding-block:clamp(3rem,8vw,6rem) clamp(2rem,5vw,3rem);}
+  .hero h1{font-size:clamp(2.1rem,5.2vw,3.5rem);max-width:16ch;}
+  .hero .lede{margin-top:1.1rem;font-size:1.12rem;}
+  .hero .ctas{display:flex;gap:.75rem;flex-wrap:wrap;margin-top:1.75rem;}
+
+  .ticker{
+    margin-top:2.75rem;border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+    padding-block:.85rem;
+    display:flex;gap:1.75rem;flex-wrap:wrap;
+    font-family:var(--font-mono);font-size:.8rem;letter-spacing:.06em;color:var(--muted);
+  }
+  .ticker b{color:var(--ink);font-weight:600;}
+  @media (prefers-reduced-motion: no-preference){
+    .ticker{position:relative;height:1.3rem;overflow:hidden;display:block;}
+    .ticker span{position:absolute;inset:0;opacity:0;animation:tick 9s infinite;}
+    .ticker span:nth-child(2){animation-delay:3s;}
+    .ticker span:nth-child(3){animation-delay:6s;}
+    @keyframes tick{
+      0%,2%{opacity:0;transform:translateY(5px);}
+      7%,28%{opacity:1;transform:translateY(0);}
+      33%,100%{opacity:0;transform:translateY(-5px);}
+    }
+  }
+
+  /* ---------- band / section headers ---------- */
+  .section-head{max-width:46ch;margin-bottom:2.25rem;}
+  .section-head h2{font-size:clamp(1.5rem,3.3vw,2rem);margin-top:.4rem;}
+
+  .band{background:var(--surface);border-top:1px solid var(--line);border-bottom:1px solid var(--line);}
+  .band .wrap{padding-block:clamp(2.5rem,6vw,4rem);}
+
+  .pain-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;}
+  @media (max-width:760px){.pain-grid{grid-template-columns:1fr;}}
+  .pain{border-left:2px solid var(--accent);padding-left:1rem;min-width:0;}
+  .pain p.big{font-family:var(--font-display);font-weight:700;font-size:1.05rem;margin-bottom:.35rem;}
+  .pain p.small{color:var(--muted);font-size:.92rem;}
+
+  /* ---------- tool cards ---------- */
+  .tool{
+    display:grid;grid-template-columns:1fr 1fr;gap:2.5rem;align-items:start;
+    padding-block:clamp(2.5rem,6vw,4rem);
+    border-bottom:1px solid var(--line);
+  }
+  .tool:last-of-type{border-bottom:none;}
+  @media (max-width:860px){.tool{grid-template-columns:1fr;}}
+  .tool .copy{min-width:0;}
+  .tool .num{font-family:var(--font-mono);color:var(--accent);font-size:.85rem;letter-spacing:.1em;}
+  .tool h3{font-size:clamp(1.3rem,2.6vw,1.7rem);margin-top:.5rem;}
+  .tool .lede{margin-top:.75rem;}
+  .tool ul{margin:1.1rem 0 0;padding:0;list-style:none;display:grid;gap:.5rem;}
+  .tool ul li{font-size:.92rem;color:var(--muted);padding-left:1.1rem;position:relative;}
+  .tool ul li::before{content:"";position:absolute;left:0;top:.5em;width:5px;height:5px;background:var(--accent);border-radius:50%;}
+
+  .demo{
+    background:var(--surface);border:1px solid var(--line);border-radius:6px;
+    padding:1.25rem;min-width:0;
+  }
+  .demo-head{display:flex;align-items:center;justify-content:space-between;gap:.75rem;margin-bottom:.9rem;flex-wrap:wrap;}
+  .demo-head .tag{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;}
+  .demo label{display:block;font-size:.78rem;color:var(--muted);margin-bottom:.35rem;font-weight:600;}
+  .demo textarea, .demo input[type=text]{
+    width:100%;background:var(--surface-2);border:1px solid var(--line);border-radius:4px;
+    color:var(--ink);font-family:var(--font-mono);font-size:.85rem;padding:.6rem .7rem;
+    resize:vertical;
+  }
+  .demo textarea{min-height:90px;}
+  .demo .field{margin-bottom:.85rem;}
+  .demo .row2{display:grid;grid-template-columns:1fr 1fr;gap:.85rem;}
+  @media (max-width:500px){.demo .row2{grid-template-columns:1fr;}}
+  .demo .actions{display:flex;gap:.6rem;margin-top:.25rem;flex-wrap:wrap;}
+  .demo .actions button{
+    font-size:.82rem;font-weight:600;padding:.5rem .85rem;border-radius:4px;cursor:pointer;
+  }
+  .demo .actions .run{background:var(--accent);color:var(--accent-ink);border:none;}
+  .demo .actions .sample{background:transparent;color:var(--ink);border:1px solid var(--line);}
+
+  .out{margin-top:1.1rem;display:grid;gap:.6rem;}
+  .seg-card{
+    display:grid;grid-template-columns:auto 1fr auto;gap:.9rem;align-items:center;
+    background:var(--surface-2);border:1px solid var(--line);border-radius:4px;padding:.65rem .8rem;
+    min-width:0;
+  }
+  .seg-card .flight{font-family:var(--font-mono);font-weight:600;font-size:.95rem;}
+  .seg-card .route{font-size:.85rem;color:var(--muted);margin-top:.15rem;}
+  .seg-card .route b{color:var(--ink);font-weight:600;}
+  .seg-card .times{font-family:var(--font-mono);font-size:.85rem;text-align:right;white-space:nowrap;}
+  .pill{
+    font-family:var(--font-mono);font-size:.68rem;letter-spacing:.04em;font-weight:600;
+    padding:.2rem .5rem;border-radius:999px;white-space:nowrap;text-transform:uppercase;
+  }
+  .pill.good{background:var(--good-bg);color:var(--good);}
+  .pill.warn{background:var(--warn-bg);color:var(--warn);}
+  .pill.bad{background:var(--bad-bg);color:var(--bad);}
+  .err-line{font-size:.78rem;color:var(--muted);font-family:var(--font-mono);}
+
+  .verdict{
+    display:flex;align-items:flex-start;gap:.75rem;padding:.9rem 1rem;border-radius:4px;margin-top:1rem;
+  }
+  .verdict .label{font-family:var(--font-display);font-weight:800;font-size:1rem;}
+  .verdict p{font-size:.85rem;margin-top:.2rem;}
+  .verdict.good{background:var(--good-bg);color:var(--good);}
+  .verdict.warn{background:var(--warn-bg);color:var(--warn);}
+  .verdict.bad{background:var(--bad-bg);color:var(--bad);}
+  .verdict .label + p{color:inherit;opacity:.85;}
+
+  .chips{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.9rem;}
+  .chip{
+    font-family:var(--font-mono);font-size:.78rem;padding:.3rem .55rem;border-radius:4px;
+    border:1px solid var(--line);background:var(--surface-2);
+  }
+  .chip.exact{border-color:var(--good);color:var(--good);}
+  .chip.fuzzy{border-color:var(--warn);color:var(--warn);}
+  .chip.missing{border-color:var(--bad);color:var(--bad);text-decoration:line-through;}
+  .chip.extra{opacity:.7;}
+
+  /* ---------- how it works ---------- */
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:1.75rem;counter-reset:step;}
+  @media (max-width:760px){.steps{grid-template-columns:1fr;}}
+  .step{min-width:0;}
+  .step .n{
+    font-family:var(--font-mono);font-size:.78rem;color:var(--accent);letter-spacing:.08em;
+  }
+  .step h3{font-size:1.1rem;margin-top:.5rem;}
+  .step p{color:var(--muted);font-size:.9rem;margin-top:.45rem;}
+
+  /* ---------- roadmap ---------- */
+  .road-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem;}
+  @media (max-width:860px){.road-grid{grid-template-columns:1fr;}}
+  .road-card{
+    background:var(--surface);border:1px dashed var(--line);border-radius:6px;padding:1.25rem;min-width:0;
+  }
+  .road-card .badge{
+    display:inline-block;font-family:var(--font-mono);font-size:.68rem;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--accent);border:1px solid var(--accent);border-radius:999px;
+    padding:.2rem .55rem;margin-bottom:.8rem;
+  }
+  .road-card h3{font-size:1.1rem;}
+  .road-card p{color:var(--muted);font-size:.88rem;margin-top:.55rem;}
+
+  /* ---------- who it's for ---------- */
+  .forband{display:flex;flex-wrap:wrap;gap:.6rem;margin-top:1.25rem;}
+  .forband span{
+    font-family:var(--font-mono);font-size:.78rem;border:1px solid var(--line);border-radius:999px;
+    padding:.35rem .75rem;color:var(--muted);
+  }
+
+  /* ---------- cta ---------- */
+  .cta{
+    background:var(--ink);color:var(--bg);border-radius:8px;
+    padding:clamp(2rem,6vw,3rem);display:grid;grid-template-columns:1.3fr 1fr;gap:2rem;align-items:center;
+  }
+  @media (max-width:760px){.cta{grid-template-columns:1fr;}}
+  .cta h2{color:var(--bg);font-size:clamp(1.4rem,3vw,1.9rem);}
+  .cta p{color:var(--bg);opacity:.75;margin-top:.75rem;font-size:.95rem;}
+  .contact-card{
+    background:color-mix(in srgb, var(--bg) 10%, transparent);
+    border:1px solid color-mix(in srgb, var(--bg) 25%, transparent);
+    border-radius:6px;padding:1.1rem;min-width:0;
+  }
+  .contact-card .eyebrow{color:var(--accent);}
+  .contact-row{
+    display:flex;align-items:center;justify-content:space-between;gap:.6rem;
+    font-family:var(--font-mono);font-size:.95rem;color:var(--bg);margin-top:.6rem;
+    padding:.5rem .6rem;background:color-mix(in srgb, var(--bg) 8%, transparent);border-radius:4px;
+    min-width:0;
+  }
+  .contact-row span{overflow-wrap:anywhere;}
+  .copy-btn{
+    background:transparent;border:1px solid color-mix(in srgb, var(--bg) 35%, transparent);
+    color:var(--bg);border-radius:4px;padding:.3rem .55rem;font-size:.72rem;cursor:pointer;flex:none;
+  }
+  .copy-btn:hover{background:color-mix(in srgb, var(--bg) 12%, transparent);}
+
+  footer{border-top:1px solid var(--line);padding-block:2rem;}
+  footer .wrap{display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;}
+  footer .fine{color:var(--muted);font-size:.82rem;}
+</style>
+
+<header class="site">
+  <div class="wrap bar">
+    <div class="logo">eze<span>Agency</span></div>
+    <nav class="links">
+      <a href="#tools">Tools</a>
+      <a href="#how">How it works</a>
+      <a href="#roadmap">Roadmap</a>
+    </nav>
+    <a class="btn" href="#early-access">Get early access</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <p class="eyebrow">For travel agents &amp; ticketing desks</p>
+    <h1>Agency busywork, decoded in seconds.</h1>
+    <p class="lede">EzeAgency turns the raw GDS text your desk stares at all day — PNR dumps, passenger names — into clean, checked, ready-to-book information. No retyping, no second-guessing a name before you ticket it.</p>
+    <div class="ctas">
+      <a class="btn" href="#tools">Try the tools below</a>
+      <a class="btn ghost" href="#early-access">Get early access</a>
+    </div>
+    <div class="ticker" aria-hidden="true">
+      <span><b>01</b> &nbsp;PNR pasted in, itinerary out, clean</span>
+      <span><b>02</b> &nbsp;Name on ticket checked against the ID</span>
+      <span><b>03</b> &nbsp;Confident to book — no re-checking twice</span>
+    </div>
+  </section>
+
+  <section class="pain-grid">
+    <div class="pain">
+      <p class="big">Every PNR gets retyped by hand</p>
+      <p class="small">Into a quote, a WhatsApp reply, an invoice — the same itinerary, copied out again and again.</p>
+    </div>
+    <div class="pain">
+      <p class="big">One name mismatch, one denied boarding</p>
+      <p class="small">A dropped letter between the booking and the passport is a counter-desk problem on travel day, not before.</p>
+    </div>
+    <div class="pain">
+      <p class="big">Add-ons get skipped for lack of time</p>
+      <p class="small">Visa, SIM, insurance — real revenue per passenger, usually left on the table because there's no moment to offer it.</p>
+    </div>
+  </section>
+</main>
+
+<div class="band" id="tools">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="eyebrow">The tools</p>
+      <h2>Start with the two jobs every desk does all day</h2>
+    </div>
+
+    <div class="tool">
+      <div class="copy">
+        <p class="num">TOOL 01</p>
+        <h3>PNR Decoder</h3>
+        <p class="lede">Paste a raw GDS itinerary — Sabre-style segment lines — and get back a clean, readable itinerary: airline, flight, route, date, times and booking status, line by line.</p>
+        <ul>
+          <li>Reads segment status codes (HK, KK, SS, HL, NN and the rest) and names what they mean</li>
+          <li>Flags any line it can't parse instead of guessing</li>
+          <li>Works from the same segment-line format your GDS prints in an *I display</li>
+        </ul>
+      </div>
+      <div class="demo">
+        <div class="demo-head">
+          <span class="tag">Live demo · runs in your browser</span>
+        </div>
+        <div class="field">
+          <label for="pnr-input">Raw itinerary text</label>
+          <textarea id="pnr-input" spellcheck="false"></textarea>
+        </div>
+        <div class="actions">
+          <button class="run" id="pnr-run" type="button">Decode it</button>
+          <button class="sample" id="pnr-sample" type="button">Load another sample</button>
+        </div>
+        <div class="out" id="pnr-out"></div>
+      </div>
+    </div>
+
+    <div class="tool">
+      <div class="copy">
+        <p class="num">TOOL 02</p>
+        <h3>Name Checker</h3>
+        <p class="lede">Compare the name as booked against the name on the passport or ID. Catches reordering, dropped middle names, and the one-letter typos that cause denied boarding or a rejected e-visa.</p>
+        <ul>
+          <li>Ignores titles (MR/MRS/MS) and the GDS LAST/FIRST order automatically</li>
+          <li>Tells a harmless missing middle name apart from a real mismatch</li>
+          <li>Flags likely typos (one or two letters off) separately from a clean match</li>
+        </ul>
+      </div>
+      <div class="demo">
+        <div class="demo-head">
+          <span class="tag">Live demo · runs in your browser</span>
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label for="name-booking">Name as booked (PNR)</label>
+            <input type="text" id="name-booking" spellcheck="false">
+          </div>
+          <div class="field">
+            <label for="name-id">Name on passport / ID</label>
+            <input type="text" id="name-id" spellcheck="false">
+          </div>
+        </div>
+        <div class="actions">
+          <button class="run" id="name-run" type="button">Check names</button>
+          <button class="sample" id="name-sample" type="button">Try another example</button>
+        </div>
+        <div class="out" id="name-out"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<main class="wrap">
+  <section id="how">
+    <div class="section-head">
+      <p class="eyebrow">How it works</p>
+      <h2>Three steps, same as today — minus the busywork</h2>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <p class="n">STEP 1</p>
+        <h3>Paste what you already have</h3>
+        <p>The GDS dump, the name off the booking, the name off the ID — whatever's already in front of you on the desk.</p>
+      </div>
+      <div class="step">
+        <p class="n">STEP 2</p>
+        <h3>EzeAgency checks it instantly</h3>
+        <p>Itinerary parsed, names compared, anything worth a second look called out clearly — in the browser, no waiting.</p>
+      </div>
+      <div class="step">
+        <p class="n">STEP 3</p>
+        <h3>Book with confidence</h3>
+        <p>Send the quote, issue the ticket, move to the next passenger — without the nagging feeling you should double-check something.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="roadmap">
+    <div class="section-head">
+      <p class="eyebrow">What's next</p>
+      <h2>Add-ons to sell alongside every booking</h2>
+      <p class="lede" style="margin-top:.6rem;">Once the daily tools are solid, EzeAgency opens a B2B shelf of add-ons agents can resell at the point of booking — no separate supplier account to set up.</p>
+    </div>
+    <div class="road-grid">
+      <div class="road-card">
+        <span class="badge">On the roadmap</span>
+        <h3>e-Visa</h3>
+        <p>Resell e-visas for the destinations you already book, priced for the agent and handed to the client in the same conversation as the ticket.</p>
+      </div>
+      <div class="road-card">
+        <span class="badge">On the roadmap</span>
+        <h3>e-SIM</h3>
+        <p>A data plan for the trip, quoted and issued alongside the itinerary instead of left for the client to sort out at the airport.</p>
+      </div>
+      <div class="road-card">
+        <span class="badge">On the roadmap</span>
+        <h3>Travel insurance</h3>
+        <p>Cover attached to the booking by default, not an afterthought — one more line on the quote, one more margin for the agency.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head" style="margin-bottom:1rem;">
+      <p class="eyebrow">Built for</p>
+      <h2>Desks that live in a GDS all day</h2>
+    </div>
+    <div class="forband">
+      <span>Independent travel agents</span>
+      <span>Small &amp; mid-size agencies</span>
+      <span>Ticketing officers</span>
+      <span>Sabre</span>
+      <span>Amadeus</span>
+      <span>Galileo</span>
+      <span>WhatsApp &amp; Meta inbox teams</span>
+    </div>
+  </section>
+
+  <section id="early-access">
+    <div class="cta">
+      <div>
+        <p class="eyebrow">Early access</p>
+        <h2>EzeAgency is in early development.</h2>
+        <p>The tools above already run end to end. If your agency wants in before the add-on marketplace launches, reach out — early agencies shape what ships next.</p>
+      </div>
+      <div class="contact-card">
+        <p class="eyebrow">Get in touch</p>
+        <div class="contact-row">
+          <span id="contact-email">hello@ezeagency.com</span>
+          <button class="copy-btn" id="copy-email" type="button">Copy</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="logo" style="font-size:1rem;">eze<span>Agency</span></div>
+    <p class="fine">Day-to-day tools for travel agents. Currently in early development.</p>
+  </div>
+</footer>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------- PNR Decoder ---------------- */
+  var STATUS_LABEL = {
+    HK:"Confirmed", KK:"Confirmed", SS:"Confirmed", TK:"Confirmed (agent)",
+    RR:"Reconfirmed", HL:"Waitlisted", KL:"Waitlisted", WL:"Waitlisted",
+    WK:"Waitlist cleared", NN:"Requested", HN:"Request pending",
+    UN:"Unable to confirm", UC:"Unable to confirm", UU:"Unable to confirm",
+    HX:"Cancelled", SA:"Suggested alternative", SC:"Suggested &amp; confirmed"
+  };
+  var STATUS_CODES = Object.keys(STATUS_LABEL);
+
+  function statusPillClass(code){
+    if (["HK","KK","SS","TK","RR","WK"].indexOf(code) >= 0) return "good";
+    if (["HL","KL","WL","NN","HN","SA","SC"].indexOf(code) >= 0) return "warn";
+    return "bad";
+  }
+
+  function fmtTime(t){
+    if (!t) return "—";
+    var s = t.length === 3 ? "0" + t : t;
+    return s.slice(0,2) + ":" + s.slice(2,4);
+  }
+
+  function parsePnr(text){
+    var lines = text.split("\n").map(function(l){return l.trim();}).filter(Boolean);
+    var segments = [], errors = [];
+    lines.forEach(function(line, idx){
+      var tokens = line.split(/\s+/);
+      var seg = {airline:null, flight:null, cls:null, date:null, from:null, to:null, statusCode:null, dep:null, arr:null};
+      var times = [];
+      for (var i = 0; i < tokens.length; i++) {
+        var tok = tokens[i];
+        var m;
+        if (i === 0 && /^\d{1,2}$/.test(tok)) { continue; }
+        if (!seg.airline) {
+          // combined form, e.g. "TG319Y"
+          if ((m = tok.match(/^([A-Z]{2})(\d{1,4})([A-Z])?$/))) {
+            seg.airline = m[1]; seg.flight = m[2]; seg.cls = m[3] || null; continue;
+          }
+          // split form, e.g. "TG" "319Y" (the common *I display layout)
+          if (/^[A-Z]{2}$/.test(tok) && i + 1 < tokens.length) {
+            var m2 = tokens[i + 1].match(/^(\d{1,4})([A-Z])?$/);
+            if (m2) {
+              seg.airline = tok; seg.flight = m2[1]; seg.cls = m2[2] || null;
+              i++; continue;
+            }
+          }
+        }
+        if (!seg.date && /^\d{1,2}[A-Z]{3}$/.test(tok)) { seg.date = tok; continue; }
+        if (seg.date && !seg.from && /^\d$/.test(tok)) { continue; } // optional day-of-week digit
+        if (!seg.from && /^[A-Z]{6}$/.test(tok)) { seg.from = tok.slice(0,3); seg.to = tok.slice(3,6); continue; }
+        if (!seg.statusCode) {
+          if ((m = tok.match(/^([A-Z]{2})(\d{1,2})$/)) && STATUS_CODES.indexOf(m[1]) >= 0) {
+            seg.statusCode = m[1]; continue;
+          }
+        }
+        if (/^\d{3,4}$/.test(tok)) { times.push(tok); continue; }
+      }
+      seg.dep = times[0] || null;
+      seg.arr = times[1] || null;
+      if (seg.airline && seg.from && seg.to) {
+        segments.push(seg);
+      } else {
+        errors.push({n: idx + 1, text: line});
+      }
+    });
+    return {segments: segments, errors: errors};
+  }
+
+  function renderPnr(result){
+    var out = document.getElementById("pnr-out");
+    out.innerHTML = "";
+    if (!result.segments.length && !result.errors.length) return;
+
+    result.segments.forEach(function(seg){
+      var card = document.createElement("div");
+      card.className = "seg-card";
+      var label = seg.statusCode ? (STATUS_LABEL[seg.statusCode] || seg.statusCode) : "Status unknown";
+      var pillClass = seg.statusCode ? statusPillClass(seg.statusCode) : "warn";
+      card.innerHTML =
+        '<div><div class="flight">' + seg.airline + " " + seg.flight + (seg.cls ? " " + seg.cls : "") +
+        '</div><div class="route">' + (seg.date || "") + "</div></div>" +
+        '<div><div class="route"><b>' + seg.from + "</b> &rarr; <b>" + seg.to + "</b></div>" +
+        '<span class="pill ' + pillClass + '">' + label + "</span></div>" +
+        '<div class="times">' + fmtTime(seg.dep) + " &rarr; " + fmtTime(seg.arr) + "</div>";
+      out.appendChild(card);
+    });
+    result.errors.forEach(function(err){
+      var p = document.createElement("p");
+      p.className = "err-line";
+      p.textContent = "Couldn't read line " + err.n + ': "' + err.text + '" — check it matches a segment line (airline, flight, date, route).';
+      out.appendChild(p);
+    });
+  }
+
+  var PNR_SAMPLES = [
+    "1  TG 319Y 15DEC KTMBKK HK1  1105 1410\n2  TG 304Y 18DEC BKKKTM HK1  0820 1005",
+    "1  QR 646C 02NOV KTMDOH HK1  0920 1155\n2  QR 650C 02NOV DOHDXB HL1  1340 1520\n3  QR 651Y 09NOV DXBDOH SS1  0905 1045",
+    "1  AI 213Y 20DEC KTMDEL NN1  0855 0930\nbad garbled line here\n2  AI 996Y 20DEC DELBOM HK1  1615 1815"
+  ];
+  var pnrSampleIdx = 0;
+  function loadPnrSample(){
+    document.getElementById("pnr-input").value = PNR_SAMPLES[pnrSampleIdx % PNR_SAMPLES.length];
+    pnrSampleIdx++;
+    renderPnr(parsePnr(document.getElementById("pnr-input").value));
+  }
+  document.getElementById("pnr-run").addEventListener("click", function(){
+    renderPnr(parsePnr(document.getElementById("pnr-input").value));
+  });
+  document.getElementById("pnr-sample").addEventListener("click", loadPnrSample);
+  loadPnrSample();
+
+  /* ---------------- Name Checker ---------------- */
+  function levenshtein(a, b){
+    var m = a.length, n = b.length;
+    var dp = [];
+    for (var i = 0; i <= m; i++){ dp.push(new Array(n + 1).fill(0)); dp[i][0] = i; }
+    for (var j = 0; j <= n; j++){ dp[0][j] = j; }
+    for (i = 1; i <= m; i++){
+      for (j = 1; j <= n; j++){
+        dp[i][j] = Math.min(
+          dp[i-1][j] + 1,
+          dp[i][j-1] + 1,
+          dp[i-1][j-1] + (a[i-1] === b[j-1] ? 0 : 1)
+        );
+      }
+    }
+    return dp[m][n];
+  }
+
+  var TITLES = /\b(MR|MRS|MS|MSTR|MISS|DR|PROF)\b\.?/g;
+  function normalizeName(raw){
+    var s = raw.toUpperCase().replace(/\//g, " ");
+    s = s.replace(TITLES, " ");
+    s = s.replace(/[^A-Z\s-]/g, " ");
+    s = s.replace(/\s+/g, " ").trim();
+    return s;
+  }
+  function toks(s){ return s.length ? s.split(" ").filter(Boolean) : []; }
+
+  function compareNames(bookingRaw, idRaw){
+    var a = toks(normalizeName(bookingRaw));
+    var bPool = toks(normalizeName(idRaw));
+    var results = [];
+    var fuzzyCount = 0, missingCount = 0;
+
+    a.forEach(function(tok){
+      var idx = bPool.indexOf(tok);
+      if (idx >= 0) {
+        results.push({tok: tok, kind: "exact"});
+        bPool.splice(idx, 1);
+        return;
+      }
+      var best = -1, bestDist = Infinity;
+      bPool.forEach(function(cand, i){
+        var d = levenshtein(tok, cand);
+        if (d < bestDist) { bestDist = d; best = i; }
+      });
+      var longer = best >= 0 ? Math.max(tok.length, bPool[best].length) : 0;
+      if (best >= 0 && bestDist <= 2 && bestDist / longer <= 0.34) {
+        results.push({tok: tok, kind: "fuzzy", match: bPool[best]});
+        fuzzyCount++;
+        bPool.splice(best, 1);
+      } else {
+        results.push({tok: tok, kind: "missing"});
+        missingCount++;
+      }
+    });
+
+    var extra = bPool;
+    var verdict;
+    if (!a.length || !toks(normalizeName(idRaw)).length) {
+      verdict = {level: "warn", label: "Nothing to compare yet", detail: "Enter both names to run the check."};
+    } else if (missingCount === 0 && fuzzyCount === 0) {
+      verdict = {level: "good", label: "Exact match", detail: "Every part of the booked name appears on the ID, letter for letter."};
+    } else if (missingCount === 0 && fuzzyCount > 0) {
+      verdict = {level: "warn", label: "Possible typo", detail: "The names line up, but one part differs by a letter or two — worth a quick check before ticketing."};
+    } else if (missingCount === 1 && extra.length <= 1) {
+      verdict = {level: "warn", label: "Partial match", detail: "Most of the name matches. Confirm the part that didn't line up before you book."};
+    } else {
+      verdict = {level: "bad", label: "Mismatch", detail: "A key part of the name doesn't match. Airlines and e-visa or insurance partners can reject this — fix it before booking."};
+    }
+    return {results: results, extra: extra, verdict: verdict};
+  }
+
+  function renderNames(cmp){
+    var out = document.getElementById("name-out");
+    out.innerHTML = "";
+
+    var verdict = document.createElement("div");
+    verdict.className = "verdict " + cmp.verdict.level;
+    verdict.innerHTML = '<div><p class="label">' + cmp.verdict.label + "</p><p>" + cmp.verdict.detail + "</p></div>";
+    out.appendChild(verdict);
+
+    var chips = document.createElement("div");
+    chips.className = "chips";
+    cmp.results.forEach(function(r){
+      var c = document.createElement("span");
+      c.className = "chip " + r.kind;
+      c.textContent = r.kind === "fuzzy" ? r.tok + " ~ " + r.match : r.tok;
+      chips.appendChild(c);
+    });
+    cmp.extra.forEach(function(tok){
+      var c = document.createElement("span");
+      c.className = "chip extra";
+      c.textContent = tok + " (extra on ID)";
+      chips.appendChild(c);
+    });
+    out.appendChild(chips);
+  }
+
+  var NAME_SAMPLES = [
+    ["KARKI/SAMJHANA MS", "SAMJANA KARKI"],
+    ["GURUNG/SUSHIL MR", "SUSHIL GURUNG"],
+    ["SHRESTHA/ANISH KUMAR MR", "ANISH SHRESTHA"],
+    ["THAPA/BIBEK MR", "BIBECK THAPAA"]
+  ];
+  var nameSampleIdx = 0;
+  function loadNameSample(){
+    var pair = NAME_SAMPLES[nameSampleIdx % NAME_SAMPLES.length];
+    nameSampleIdx++;
+    document.getElementById("name-booking").value = pair[0];
+    document.getElementById("name-id").value = pair[1];
+    renderNames(compareNames(pair[0], pair[1]));
+  }
+  document.getElementById("name-run").addEventListener("click", function(){
+    renderNames(compareNames(
+      document.getElementById("name-booking").value,
+      document.getElementById("name-id").value
+    ));
+  });
+  document.getElementById("name-sample").addEventListener("click", loadNameSample);
+  loadNameSample();
+
+  /* ---------------- copy contact ---------------- */
+  var copyBtn = document.getElementById("copy-email");
+  copyBtn.addEventListener("click", function(){
+    var text = document.getElementById("contact-email").textContent;
+    function fallbackSelect(){
+      var range = document.createRange();
+      range.selectNodeContents(document.getElementById("contact-email"));
+      var sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function(){
+        copyBtn.textContent = "Copied";
+        setTimeout(function(){ copyBtn.textContent = "Copy"; }, 1500);
+      }).catch(fallbackSelect);
+    } else {
+      fallbackSelect();
+    }
+  });
+})();
+</script>
